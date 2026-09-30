@@ -171,7 +171,7 @@ services:
 
   # Used through `docker compose run` by scripts/init-tls.sh and scripts/renew-certs.sh.
   certbot:
-    image: certbot/certbot:v3.0.1
+    image: certbot/certbot:v5.8.0
     profiles: [tools]
     volumes:
       - ./data/letsencrypt:/etc/letsencrypt
