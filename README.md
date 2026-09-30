@@ -1,6 +1,6 @@
 # production-deploy-reference
 
-[![CI](https://github.com/Zaeem-A/production-deploy-reference/actions/workflows/ci.yml/badge.svg)](https://github.com/Zaeem-A/production-deploy-reference/actions/workflows/ci.yml)
+[![Build and deploy](https://github.com/Zaeem-A/production-deploy-reference/actions/workflows/deploy.yml/badge.svg)](https://github.com/Zaeem-A/production-deploy-reference/actions/workflows/deploy.yml)
 
 A small FastAPI service and everything around it that a production deployment needs: Docker, Nginx with
 HTTPS, CI/CD with GitHub Actions, Postgres with migrations and tested backups, Prometheus and Grafana
