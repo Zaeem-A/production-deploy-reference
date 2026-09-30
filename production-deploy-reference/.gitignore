@@ -1,0 +1,13 @@
+# Local configuration and state: never commit these.
+.env
+secrets/
+data/
+.deploy/
+backups/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/

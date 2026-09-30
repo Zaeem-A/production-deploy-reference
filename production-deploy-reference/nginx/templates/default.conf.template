@@ -1,0 +1,75 @@
+# Rendered into /etc/nginx/conf.d/default.conf by the nginx image at container start.
+# Only ${APP_*} variables are substituted (NGINX_ENVSUBST_FILTER=^APP_); $variables are nginx's.
+
+limit_req_zone $binary_remote_addr zone=per_ip:10m rate=10r/s;
+limit_req_status 429;
+
+# Docker's embedded DNS. Resolving "api" at request time, not once at start-up, lets Nginx follow the
+# API container to its new address when a deploy recreates it, and lets Nginx start before the API is up.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
+server {
+    listen 80;
+    listen [::]:80;
+    server_name ${APP_DOMAIN};
+    server_tokens off;
+
+    # Let's Encrypt HTTP-01 challenge files are written here by certbot.
+    location /.well-known/acme-challenge/ {
+        root /var/www/certbot;
+    }
+
+    # Container healthcheck. Plain HTTP so it works before any certificate exists.
+    location = /nginx-health {
+        access_log off;
+        default_type text/plain;
+        return 200 "ok\n";
+    }
+
+    location / {
+        return 301 https://$host$request_uri;
+    }
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name ${APP_DOMAIN};
+    server_tokens off;
+
+    ssl_certificate     /etc/letsencrypt/live/${APP_DOMAIN}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/${APP_DOMAIN}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:SSL:10m;
+    ssl_session_timeout 1d;
+    ssl_session_tickets off;
+
+    add_header Strict-Transport-Security "max-age=31536000" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "DENY" always;
+    add_header Referrer-Policy "no-referrer" always;
+
+    client_max_body_size 1m;
+
+    # Prometheus scrapes the API directly over the private network; never expose this publicly.
+    location = /metrics {
+        return 404;
+    }
+
+    location / {
+        limit_req zone=per_ip burst=20 nodelay;
+
+        set $api_upstream http://api:8000;
+        proxy_pass $api_upstream;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $remote_addr;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 30s;
+    }
+}

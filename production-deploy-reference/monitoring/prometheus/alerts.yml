@@ -1,0 +1,115 @@
+# Rules are evaluated by Prometheus and visible at http://127.0.0.1:9090/alerts (SSH tunnel).
+# Alertmanager is not part of this stack: add one with a receiver (email, Slack, PagerDuty)
+# when you have somewhere to send alerts, and point Prometheus at it.
+groups:
+  - name: service
+    rules:
+      - alert: TargetDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "{{ $labels.job }} is not being scraped"
+          description: "Prometheus has failed to scrape {{ $labels.instance }} for 2 minutes."
+
+      - alert: ApiNotReady
+        # The container healthcheck calls /readyz every 10s, so failures show up as 503s.
+        expr: increase(http_requests_total{path="/readyz",status="503"}[3m]) > 3
+        labels:
+          severity: critical
+        annotations:
+          summary: "API is up but not ready (database unreachable?)"
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(http_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "More than 5% of requests are failing with 5xx"
+
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_request_duration_seconds_bucket[5m]))) > 1
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "p95 request latency is above 1s"
+
+  - name: host
+    rules:
+      - alert: DiskSpaceLow
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs"}
+            / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay|squashfs"} < 0.15
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Less than 15% disk space left on /"
+
+      - alert: MemoryPressure
+        expr: 1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Memory usage above 90% for 10 minutes"
+
+      - alert: HighCpu
+        expr: 1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) > 0.9
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU usage above 90% for 15 minutes"
+
+  - name: tls
+    rules:
+      - alert: CertExpiringSoon
+        # renew-certs.sh (daily cron) writes this metric. Renewal starts 30 days before expiry,
+        # so 14 days left means it has been failing for two weeks.
+        expr: tls_cert_not_after_timestamp_seconds - time() < 14 * 24 * 3600
+        labels:
+          severity: warning
+        annotations:
+          summary: "The certificate for {{ $labels.domain }} expires in under 14 days"
+
+  - name: backups
+    rules:
+      - alert: BackupStale
+        # backup.sh writes this metric through node-exporter's textfile collector.
+        expr: time() - backup_last_success_timestamp_seconds > 26 * 3600
+        labels:
+          severity: critical
+        annotations:
+          summary: "No successful database backup in the last 26 hours"
+
+      - alert: BackupMetricMissing
+        expr: absent(backup_last_success_timestamp_seconds)
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No backup has ever been recorded (is the backup cron job installed?)"
+
+      - alert: RestoreDrillStale
+        expr: time() - restore_drill_last_success_timestamp_seconds > 35 * 24 * 3600
+        labels:
+          severity: warning
+        annotations:
+          summary: "The last successful restore drill is more than 35 days old"
+
+      - alert: RestoreDrillMissing
+        # A new install has no drill metric yet, so give the first monthly run 35 days to appear.
+        expr: absent(restore_drill_last_success_timestamp_seconds)
+        for: 35d
+        labels:
+          severity: warning
+        annotations:
+          summary: "No restore drill has ever passed (is the monthly cron job installed?)"
