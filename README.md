@@ -43,6 +43,24 @@ Grafana is at `http://127.0.0.1:3000` (user `admin`, password in `secrets/grafan
 Prometheus at `http://127.0.0.1:9090`. `make help` lists the other targets. To run it on a real server
 with a real domain, follow `docs/RUNBOOK.md`.
 
+![Grafana dashboard](docs/grafana-dashboard.jpg)
+*The provisioned dashboard after a short load run, a backup and a restore drill.*
+
+## Troubleshooting
+
+**`curl` says connection refused, or `make up` starts but nothing answers on port 80.**
+Another service (Apache, another Nginx, a dev server) already holds port 80 or 443, so Docker
+cannot publish them. Check with `sudo ss -ltnp | grep -E ':(80|443)\b'`. Either stop that service or set
+`HTTP_PORT=8080` and `HTTPS_PORT=8443` in `.env`, run `make up` again and use
+`https://localhost:8443`.
+
+**Backup and restore-drill panels show "no data" and the stale-backup alert fires.**
+The scripts publish their metrics to `METRICS_TEXTFILE_DIR` (default
+`/var/lib/node-exporter-textfile`). If that folder does not exist or is not writable by your user, the
+scripts still succeed but log a `WARN ... metric not published`, and node-exporter has nothing to read.
+For a local run, set `METRICS_TEXTFILE_DIR=$PWD/data/textfile` in `.env`, run `make up` again, then
+`scripts/backup.sh` and `scripts/restore-drill.sh`. The panels fill in after the next Prometheus scrape.
+
 ## How it is tested
 
 - **`pytest` in `service/`**: configuration, logging, the store, API behaviour, and the migrations and
