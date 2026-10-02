@@ -23,7 +23,7 @@ deliberately tiny notes API, so the deployment is the part worth reading.
 | CI/CD | Lint and tests against real Postgres, then a full-stack smoke test. Pushes to `main` publish an image to GHCR; once a server is configured they also deploy to staging, and `v*` tags deploy to production behind optional approval | `.github/workflows/` |
 | Backups | Daily dump with integrity check, checksum, retention and optional rclone off-site copy; monthly restore drill; restore over the live database behind a typed confirmation | `scripts/backup.sh`, `restore.sh`, `restore-drill.sh` |
 | Monitoring | Prometheus, node-exporter and a provisioned Grafana dashboard. Alerts for target down, errors, latency, disk, memory, CPU, stale backups, stale restore drills and certificate expiry | `monitoring/` |
-| Docs | Runbook (setup, deploy, rollback, restore, failure modes) and design decisions | `docs/` |
+| Docs | Runbook (setup, deploy, rollback, restore, failure modes), design decisions, and a [sample deploy checklist report](docs/SAMPLE-DEPLOY-CHECKLIST-REPORT.md) showing the review format | `docs/` |
 
 ## Try it locally
 
@@ -79,7 +79,7 @@ monitoring/           Prometheus config and alerts, Grafana provisioning and das
 scripts/              deploy, rollback, backup, restore, TLS, smoke test
 scripts/tests/        deploy and rollback tests against a fake docker compose
 .github/workflows/    CI and build-and-deploy
-docs/                 RUNBOOK.md, DECISIONS.md, architecture.svg
+docs/                 RUNBOOK.md, DECISIONS.md, SAMPLE-DEPLOY-CHECKLIST-REPORT.md, architecture.svg
 ```
 
 ## Licence
