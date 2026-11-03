@@ -1,5 +1,5 @@
 -r requirements.txt
 pytest==9.0.3
 # TestClient needs httpx; 0.27.x is the line the pinned Starlette was tested against.
-httpx==0.27.2
+httpx==0.28.1
 ruff==0.15.11
